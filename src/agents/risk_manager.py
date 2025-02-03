@@ -8,11 +8,11 @@ from tools.api import prices_to_df
 import json
 import ast
 
-##### Risk Management Agent #####
+##### 风险管理代理 #####
 
 
 def risk_management_agent(state: AgentState):
-    """Evaluates portfolio risk and sets position limits based on comprehensive risk analysis."""
+    """评估投资组合风险并基于综合风险分析设置仓位限制"""
     show_reasoning = state["metadata"]["show_reasoning"]
     portfolio = state["data"]["portfolio"]
     data = state["data"]
@@ -47,61 +47,59 @@ def risk_management_agent(state: AgentState):
         "valuation": valuation_signals
     }
 
-    # 1. Calculate Risk Metrics
+    # 1. 计算风险指标
     returns = prices_df['close'].pct_change().dropna()
     daily_vol = returns.std()
-    # Annualized volatility approximation
+    # 年化波动率近似值
     volatility = daily_vol * (252 ** 0.5)
 
-    # Calculate volatility distribution
+    # 计算波动率分布
     rolling_std = returns.rolling(window=120).std() * (252 ** 0.5)
     volatility_mean = rolling_std.mean()
     volatility_std = rolling_std.std()
     volatility_percentile = (volatility - volatility_mean) / volatility_std
 
-    # Simple historical VaR at 95% confidence
+    # 简单的95%置信度历史VaR
     var_95 = returns.quantile(0.05)
-    # Calculate max drawdown using 60-day window
-    max_drawdown = (
-        prices_df['close'] / prices_df['close'].rolling(window=60).max() - 1).min()
+    # 使用60天窗口计算最大回撤
+    max_drawdown = (prices_df['close'] / prices_df['close'].rolling(window=60).max() - 1).min()
 
-    # 2. Market Risk Assessment
+    # 2. 市场风险评估
     market_risk_score = 0
 
-    # Volatility scoring based on percentile
-    if volatility_percentile > 1.5:     # Above 1.5 std dev
+    # 基于百分位的波动率评分
+    if volatility_percentile > 1.5:     # 高于1.5个标准差
         market_risk_score += 2
-    elif volatility_percentile > 1.0:   # Above 1 std dev
+    elif volatility_percentile > 1.0:   # 高于1个标准差
         market_risk_score += 1
 
-    # VaR scoring
+    # VaR评分
     if var_95 < -0.03:
         market_risk_score += 2
     elif var_95 < -0.02:
         market_risk_score += 1
 
-    # Max Drawdown scoring
-    if max_drawdown < -0.20:  # Severe drawdown
+    # 最大回撤评分
+    if max_drawdown < -0.20:  # 严重回撤
         market_risk_score += 2
     elif max_drawdown < -0.10:
         market_risk_score += 1
 
-    # 3. Position Size Limits
+    # 3. 仓位大小限制
     current_stock_value = portfolio['stock'] * prices_df['close'].iloc[-1]
     total_portfolio_value = portfolio['cash'] + current_stock_value
 
-    # Start with 25% max position of total portfolio
+    # 总投资组合的25%作为基础仓位
     base_position_size = total_portfolio_value * 0.25
 
     if market_risk_score >= 4:
-        max_position_size = base_position_size * 0.5  # Reduce for high risk
+        max_position_size = base_position_size * 0.5  # 高风险时减少仓位
     elif market_risk_score >= 2:
-        max_position_size = base_position_size * \
-            0.75  # Slightly reduce for moderate risk
+        max_position_size = base_position_size * 0.75  # 中等风险时略微减少仓位
     else:
-        max_position_size = base_position_size  # Keep base size for low risk
+        max_position_size = base_position_size  # 低风险时保持基础仓位
 
-    # 4. Risk-Adjusted Signals Analysis
+    # 4. 风险调整后的信号分析
     def parse_confidence(conf_str):
         try:
             if isinstance(conf_str, str):
@@ -110,37 +108,37 @@ def risk_management_agent(state: AgentState):
         except:
             return 0.0
 
-    # Check for low confidence signals
+    # 检查低置信度信号
     low_confidence = any(parse_confidence(
         signal['confidence']) < 0.30 for signal in agent_signals.values())
 
-    # Check signal divergence
+    # 检查信号分歧
     unique_signals = set(signal['signal'] for signal in agent_signals.values())
     signal_divergence = (2 if len(unique_signals) == 3 else 0)
 
-    # Calculate final risk score
+    # 计算最终风险分数
     risk_score = market_risk_score + \
         (2 if low_confidence else 0) + signal_divergence
     risk_score = min(round(risk_score), 10)
 
-    # 5. Determine Trading Action
-    # More flexible approach considering technical signals
+    # 5. 确定交易行为
+    # 更灵活的方法，考虑技术信号
     technical_confidence = parse_confidence(
         agent_signals['technical']['confidence'])
     fundamental_confidence = parse_confidence(
         agent_signals['fundamental']['confidence'])
 
     if risk_score >= 9:
-        trading_action = "hold"  # Extreme risk, force hold
+        trading_action = "hold"  # 极端风险，强制持仓
     elif risk_score >= 7:
-        # High risk but consider strong technical signals
+        # 高风险但考虑强劲的技术信号
         if (technical_signals['signal'] == 'bullish' and technical_confidence > 0.7 and
                 fundamental_signals['signal'] == 'bullish'):
             trading_action = "buy"
         else:
             trading_action = "reduce"
     else:
-        # Normal risk environment
+        # 正常风险环境
         if technical_signals['signal'] == 'bullish' and technical_confidence > 0.5:
             trading_action = "buy"
         elif technical_signals['signal'] == 'bearish' and technical_confidence > 0.5:
@@ -158,19 +156,19 @@ def risk_management_agent(state: AgentState):
             "max_drawdown": float(max_drawdown),
             "market_risk_score": market_risk_score
         },
-        "reasoning": f"Risk Score {risk_score}/10: Market Risk={market_risk_score}, "
-                     f"Volatility={volatility:.2%}, VaR={var_95:.2%}, "
-                     f"Max Drawdown={max_drawdown:.2%}"
+        "reasoning": f"风险评分 {risk_score}/10: 市场风险={market_risk_score}, "
+                     f"波动率={volatility:.2%}, VaR={var_95:.2%}, "
+                     f"最大回撤={max_drawdown:.2%}"
     }
 
-    # Create the risk management message
+    # 创建风险管理消息
     message = HumanMessage(
         content=json.dumps(message_content),
         name="risk_management_agent",
     )
 
     if show_reasoning:
-        show_agent_reasoning(message_content, "Risk Management Agent")
+        show_agent_reasoning(message_content, "风险管理代理")
 
     return {
         "messages": state["messages"] + [message],

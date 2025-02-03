@@ -4,26 +4,26 @@ from agents.state import AgentState, show_agent_reasoning
 
 import json
 
-##### Fundamental Agent #####
+##### 基本面分析代理 #####
 def fundamentals_agent(state: AgentState):
-    """Analyzes fundamental data and generates trading signals."""
+    """分析基本面数据并生成交易信号"""
     show_reasoning = state["metadata"]["show_reasoning"]
     data = state["data"]
     metrics = data["financial_metrics"][0]
 
-    # Initialize signals list for different fundamental aspects
+    # 初始化不同基本面方面的信号列表
     signals = []
     reasoning = {}
     
-    # 1. Profitability Analysis
+    # 1. 盈利能力分析
     return_on_equity = metrics.get("return_on_equity")
     net_margin = metrics.get("net_margin")
     operating_margin = metrics.get("operating_margin")
 
     thresholds = [
-        (return_on_equity, 0.15),  # Strong ROE above 15%
-        (net_margin, 0.20),  # Healthy profit margins
-        (operating_margin, 0.15)  # Strong operating efficiency
+        (return_on_equity, 0.15),  # ROE强劲超过15%
+        (net_margin, 0.20),  # 健康的利润率
+        (operating_margin, 0.15)  # 强劲的运营效率
     ]
     profitability_score = sum(
         metric is not None and metric > threshold
@@ -42,7 +42,7 @@ def fundamentals_agent(state: AgentState):
         )
     }
     
-    # 2. Growth Analysis
+    # 2. 增长分析
     revenue_growth = metrics.get("revenue_growth")
     earnings_growth = metrics.get("earnings_growth")
     book_value_growth = metrics.get("book_value_growth")
@@ -67,7 +67,7 @@ def fundamentals_agent(state: AgentState):
         )
     }
     
-    # 3. Financial Health
+    # 3. 财务健康度
     current_ratio = metrics.get("current_ratio")
     debt_to_equity = metrics.get("debt_to_equity")
     free_cash_flow_per_share = metrics.get("free_cash_flow_per_share")
@@ -92,7 +92,7 @@ def fundamentals_agent(state: AgentState):
         )
     }
     
-    # 4. Price to X ratios
+    # 4. 市价比率
     pe_ratio = metrics.get("price_to_earnings_ratio")
     pb_ratio = metrics.get("price_to_book_ratio")
     ps_ratio = metrics.get("price_to_sales_ratio")
@@ -119,7 +119,7 @@ def fundamentals_agent(state: AgentState):
         )
     }
     
-    # Determine overall signal
+    # 确定整体信号
     bullish_signals = signals.count('bullish')
     bearish_signals = signals.count('bearish')
     

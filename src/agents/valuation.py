@@ -3,7 +3,7 @@ from agents.state import AgentState, show_agent_reasoning
 import json
 
 def valuation_agent(state: AgentState):
-    """Performs detailed valuation analysis using multiple methodologies."""
+    """使用多种方法执行详细的估值分析"""
     show_reasoning = state["metadata"]["show_reasoning"]
     data = state["data"]
     metrics = data["financial_metrics"][0]
@@ -13,10 +13,10 @@ def valuation_agent(state: AgentState):
 
     reasoning = {}
 
-    # Calculate working capital change
+    # 计算营运资金变动
     working_capital_change = (current_financial_line_item.get('working_capital') or 0) - (previous_financial_line_item.get('working_capital') or 0)
     
-    # Owner Earnings Valuation (Buffett Method)
+    # 所有者收益估值（巴菲特方法）
     owner_earnings_value = calculate_owner_earnings_value(
         net_income=current_financial_line_item.get('net_income'),
         depreciation=current_financial_line_item.get('depreciation_and_amortization'),
@@ -27,7 +27,7 @@ def valuation_agent(state: AgentState):
         margin_of_safety=0.25
     )
     
-    # DCF Valuation
+    # DCF估值
     dcf_value = calculate_intrinsic_value(
         free_cash_flow=current_financial_line_item.get('free_cash_flow'),
         growth_rate=metrics["earnings_growth"],
@@ -36,14 +36,14 @@ def valuation_agent(state: AgentState):
         num_years=5,
     )
     
-    # Calculate combined valuation gap (average of both methods)
+    # 计算综合估值差距（两种方法的平均值）
     dcf_gap = (dcf_value - market_cap) / market_cap
     owner_earnings_gap = (owner_earnings_value - market_cap) / market_cap
     valuation_gap = (dcf_gap + owner_earnings_gap) / 2
 
-    if valuation_gap > 0.15:  # More than 15% undervalued
+    if valuation_gap > 0.15:  # 低估超过15%
         signal = 'bullish'
-    elif valuation_gap < -0.15:  # More than 15% overvalued
+    elif valuation_gap < -0.15:  # 高估超过15%
         signal = 'bearish'
     else:
         signal = 'neutral'
@@ -88,30 +88,30 @@ def calculate_owner_earnings_value(
     num_years: int = 5
 ) -> float:
     """
-    Calculates the intrinsic value using Buffett's Owner Earnings method.
+    使用巴菲特的所有者收益法计算内在价值
     
-    Owner Earnings = Net Income 
-                    + Depreciation/Amortization
-                    - Capital Expenditures
-                    - Working Capital Changes
+    所有者收益 = 净利润 
+                + 折旧/摊销
+                - 资本支出
+                - 营运资金变动
     
-    Args:
-        net_income: Annual net income
-        depreciation: Annual depreciation and amortization
-        capex: Annual capital expenditures
-        working_capital_change: Annual change in working capital
-        growth_rate: Expected growth rate
-        required_return: Required rate of return (Buffett typically uses 15%)
-        margin_of_safety: Margin of safety to apply to final value
-        num_years: Number of years to project
+    参数:
+        net_income: 年度净利润
+        depreciation: 年度折旧和摊销
+        capex: 年度资本支出
+        working_capital_change: 年度营运资金变动
+        growth_rate: 预期增长率
+        required_return: 要求回报率（巴菲特通常使用15%）
+        margin_of_safety: 安全边际
+        num_years: 预测年数
     
-    Returns:
-        float: Intrinsic value with margin of safety
+    返回:
+        float: 考虑安全边际的内在价值
     """
     if not all([isinstance(x, (int, float)) for x in [net_income, depreciation, capex, working_capital_change]]):
         return 0
     
-    # Calculate initial owner earnings
+    # 计算初始所有者收益
     owner_earnings = (
         net_income +
         depreciation -
@@ -122,19 +122,19 @@ def calculate_owner_earnings_value(
     if owner_earnings <= 0:
         return 0
 
-    # Project future owner earnings
+    # 预测未来所有者收益
     future_values = []
     for year in range(1, num_years + 1):
         future_value = owner_earnings * (1 + growth_rate) ** year
         discounted_value = future_value / (1 + required_return) ** year
         future_values.append(discounted_value)
     
-    # Calculate terminal value (using perpetuity growth formula)
-    terminal_growth = min(growth_rate, 0.03)  # Cap terminal growth at 3%
+    # 计算终值（使用永续增长公式）
+    terminal_growth = min(growth_rate, 0.03)  # 终值增长率上限为3%
     terminal_value = (future_values[-1] * (1 + terminal_growth)) / (required_return - terminal_growth)
     terminal_value_discounted = terminal_value / (1 + required_return) ** num_years
     
-    # Sum all values and apply margin of safety
+    # 求和所有价值并应用安全边际
     intrinsic_value = (sum(future_values) + terminal_value_discounted)
     value_with_safety_margin = intrinsic_value * (1 - margin_of_safety)
     
@@ -149,8 +149,8 @@ def calculate_intrinsic_value(
     num_years: int = 5,
 ) -> float:
     """
-    Computes the discounted cash flow (DCF) for a given company based on the current free cash flow.
-    Use this function to calculate the intrinsic value of a stock.
+    基于当前自由现金流计算公司的贴现现金流(DCF)。
+    使用此函数计算股票的内在价值。
     """
     # Estimate the future cash flows based on the growth rate
     cash_flows = [free_cash_flow * (1 + growth_rate) ** i for i in range(num_years)]
@@ -175,15 +175,15 @@ def calculate_working_capital_change(
     previous_working_capital: float,
 ) -> float:
     """
-    Calculate the absolute change in working capital between two periods.
-    A positive change means more capital is tied up in working capital (cash outflow).
-    A negative change means less capital is tied up (cash inflow).
+    计算两个期间之间的营运资金绝对变化。
+    正变化意味着更多资金被占用在营运资金中（现金流出）。
+    负变化意味着较少资金被占用（现金流入）。
     
-    Args:
-        current_working_capital: Current period's working capital
-        previous_working_capital: Previous period's working capital
+    参数:
+        current_working_capital: 当期营运资金
+        previous_working_capital: 上期营运资金
     
-    Returns:
-        float: Change in working capital (current - previous)
+    返回:
+        float: 营运资金变动（当期 - 上期）
     """
     return current_working_capital - previous_working_capital
