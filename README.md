@@ -64,7 +64,7 @@ graph TD
 4. **Sentiment Analyst**
 
    - Fetches news from AlphaVantage
-   - Analyzes news sentiment using Gemini
+   - Analyzes news sentiment using openai
    - Generates sentiment-based signals
 
 5. **Risk Manager**
@@ -148,7 +148,7 @@ The system stores data in JSON format:
 - Poetry for dependency management
 - AlphaVantage API key (Get your free API key from [AlphaVantage](https://www.alphavantage.co/support/#api-key))
   - Note: Free API key has a limit of 25 requests per day for news data
-- Gemini API key (Get your free API key from [Google AI Studio](https://aistudio.google.com/))
+- openai API key (Get your free API key from [Google AI Studio](https://aistudio.google.com/))
 
 ## ⚠️ Important Notes
 
@@ -202,8 +202,8 @@ Then edit the .env file:
 
 ```
 ALPHA_VANTAGE_API_KEY=your_api_key_here
-GEMINI_API_KEY=your_gemini_api_key_here
-GEMINI_MODEL=gemini-1.5-flash
+OPENAI_JUSTTRADE_KEY=your_OPENAI_JUSTTRADE_KEY_here
+OPENAI_MODEL=gpt-40
 ```
 
 b) **Via command line**:
@@ -212,16 +212,16 @@ Unix/macOS:
 
 ```bash
 export ALPHA_VANTAGE_API_KEY='your_api_key_here'
-export GEMINI_API_KEY='your_gemini_api_key_here'
-export GEMINI_MODEL='gemini-1.5-flash'
+export OPENAI_JUSTTRADE_KEY='your_OPENAI_JUSTTRADE_KEY_here'
+export openai_MODEL='openai-1.5-flash'
 ```
 
 Windows PowerShell:
 
 ```powershell
 $env:ALPHA_VANTAGE_API_KEY='your_api_key_here'
-$env:GEMINI_API_KEY='your_gemini_api_key_here'
-$env:GEMINI_MODEL='gemini-1.5-flash'
+$env:OPENAI_JUSTTRADE_KEY='your_OPENAI_JUSTTRADE_KEY_here'
+$env:openai_MODEL='openai-1.5-flash'
 ```
 
 ## 🚀 Usage

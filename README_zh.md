@@ -64,7 +64,7 @@ graph TD
 4. **Sentiment Analyst**
 
    - 从 AlphaVantage 获取新闻
-   - 使用 Gemini 分析新闻情感
+   - 使用 openai 分析新闻情感
    - 生成基于情感的信号
 
 5. **Risk Manager**
@@ -148,7 +148,7 @@ Free_US_Investment_Agent_System/
 - Poetry 依赖管理工具
 - AlphaVantage API 密钥（从[AlphaVantage](https://www.alphavantage.co/support/#api-key)获取免费密钥）
   - 注意：免费 API 密钥每天限制 25 次新闻数据请求
-- Gemini API 密钥（从[Google AI Studio](https://aistudio.google.com/)获取免费密钥）
+- openai API 密钥（从[Google AI Studio](https://aistudio.google.com/)获取免费密钥）
 
 ## ⚠️ 重要说明
 
@@ -202,8 +202,8 @@ cp .env.example .env
 
 ```
 ALPHA_VANTAGE_API_KEY=你的api密钥
-GEMINI_API_KEY=你的gemini密钥
-GEMINI_MODEL=gemini-1.5-flash
+OPENAI_JUSTTRADE_KEY=你的openai密钥
+OPENAI_MODEL=gpt-40
 ```
 
 b) **通过命令行**：
@@ -212,16 +212,16 @@ Unix/macOS:
 
 ```bash
 export ALPHA_VANTAGE_API_KEY='你的api密钥'
-export GEMINI_API_KEY='你的gemini密钥'
-export GEMINI_MODEL='gemini-1.5-flash'
+export OPENAI_JUSTTRADE_KEY='你的openai密钥'
+export openai_MODEL='GPT-4o'
 ```
 
 Windows PowerShell:
 
 ```powershell
 $env:ALPHA_VANTAGE_API_KEY='你的api密钥'
-$env:GEMINI_API_KEY='你的gemini密钥'
-$env:GEMINI_MODEL='gemini-1.5-flash'
+$env:OPENAI_JUSTTRADE_KEY='你的openai密钥'
+$env:openai_MODEL='openai-1.5-flash'
 ```
 
 ## 🚀 使用方法
