@@ -4,7 +4,7 @@ import yfinance as yf
 from datetime import datetime, timedelta
 import random
 import json
-
+from .db_connection import get_stocks_db_connection,get_tweets_db_connection 
 
 def get_financial_metrics(ticker: str) -> Dict[str, Any]:
     """获取财务指标数据，包含缓存机制和时间戳"""
@@ -177,38 +177,48 @@ def get_market_data(ticker: str) -> Dict[str, Any]:
     }
 
 
-def get_price_history(ticker: str, start_date: str = None, end_date: str = None) -> pd.DataFrame:
+def get_price_history(symbol: str, start_date: str = None, end_date: str = None) -> pd.DataFrame:
     """获取历史价格数据，返回与原项目相同格式的数据"""
-    stock = yf.Ticker(ticker)
+    # 连接到 MySQL 数据库
+    connection = get_stocks_db_connection()  # 使用封装的连接函数
 
-    # 如果没有提供日期，默认获取过去3个月的数据
-    if not end_date:
-        end_date = datetime.now()
-    else:
-        end_date = datetime.strptime(end_date, "%Y-%m-%d")
+    try:
+        # 如果没有提供日期，默认获取过去3个月的数据
+        if not end_date:
+            end_date = datetime.now()
+        else:
+            end_date = datetime.strptime(end_date, "%Y-%m-%d")
 
-    if not start_date:
-        start_date = end_date - timedelta(days=90)
-    else:
-        start_date = datetime.strptime(start_date, "%Y-%m-%d")
+        if not start_date:
+            start_date = end_date - timedelta(days=90)
+        else:
+            start_date = datetime.strptime(start_date, "%Y-%m-%d")
 
-        # 获取历史数据
-        df = stock.history(start=start_date, end=end_date)
+        # 从数据库中获取历史数据
+        query = f"""
+        SELECT date, open, high, low, close, volume 
+        FROM stock_ohlc 
+        WHERE symbol = '{symbol}' AND date BETWEEN '{start_date.strftime("%Y-%m-%d")}' AND '{end_date.strftime("%Y-%m-%d")}'
+        """
+        df = pd.read_sql(query, connection)
 
         # 转换为原项目格式的列表
         prices = []
-        for date, row in df.iterrows():
+        for _, row in df.iterrows():
             price_dict = {
-                "time": date.strftime("%Y-%m-%d"),
-                "open": float(row["Open"]),
-                "high": float(row["High"]),
-                "low": float(row["Low"]),
-                "close": float(row["Close"]),
-                "volume": int(row["Volume"])
+                "time": row["date"].strftime("%Y-%m-%d"),
+                "open": float(row["open"]),
+                "high": float(row["high"]),
+                "low": float(row["low"]),
+                "close": float(row["close"]),
+                "volume": int(row["volume"])
             }
             prices.append(price_dict)
-
+        print(prices)
         return prices
+
+    finally:
+        connection.close()
 
 
 def prices_to_df(prices: List[Dict[str, Any]]) -> pd.DataFrame:
@@ -268,3 +278,43 @@ def get_price_data(ticker: str, start_date: str, end_date: str) -> pd.DataFrame:
         print(f"Error in get_price_data for {ticker}: {str(e)}")
         # 返回空DataFrame但包含所需的列
         return pd.DataFrame(columns=["Date", "open", "high", "low", "close", "volume"])
+
+
+def get_tweets_about_ticker(symbol: str, start_date: str = None, end_date: str = None) -> List[Dict[str, Any]]:
+    """获取与特定股票代码相关的推文"""
+    # 连接到推文数据库
+    connection = get_tweets_db_connection()  # 使用封装的连接函数
+    try:
+        # 构建查询条件
+        if start_date and end_date:
+            start_datetime = f"{start_date} 00:00:00"
+            end_datetime = f"{end_date} 23:59:59"
+            query = f"""
+            SELECT * 
+            FROM tweets 
+            WHERE JSON_CONTAINS(tags, '\"{symbol}\"') AND PublishedDate BETWEEN '{start_datetime}' AND '{end_datetime}'
+            """
+        else:
+            # 查询所有推文
+            query = f"""
+            SELECT * 
+            FROM tweets 
+            WHERE JSON_CONTAINS(tags, '\"{symbol}\"')
+            """
+
+        df = pd.read_sql(query, connection)
+
+        # 处理推文数据
+        tweets = []
+        for _, row in df.iterrows():
+            processed_tweet = row.to_dict()  # 将整行数据转换为字典
+            tweets.append(processed_tweet)
+
+        return tweets
+
+    except Exception as e:
+        print(f"Error getting tweets for {symbol}: {e}")
+        return []
+
+    finally:
+        connection.close()  # 确保连接关闭
