@@ -12,7 +12,7 @@ import numpy as np
 from tools.api import prices_to_df
 
 
-##### 技术分析师 #####
+##### Technical Analyst #####
 def technical_analyst_agent(state: AgentState):
     """
     复杂的技术分析系统，结合多种交易策略：
@@ -28,87 +28,87 @@ def technical_analyst_agent(state: AgentState):
     prices_df = prices_to_df(prices)
 
     # 计算指标
-    # 1. MACD（移动平均收敛发散）
+    # 1. MACD（移动平均收敛发散指标）
     macd_line, signal_line = calculate_macd(prices_df)
 
     # 2. RSI（相对强弱指数）
     rsi = calculate_rsi(prices_df)
 
-    # 3. 布林带（Bollinger Bands）
+    # 3. 布林带
     upper_band, lower_band = calculate_bollinger_bands(prices_df)
 
     # 4. OBV（平衡交易量）
     obv = calculate_obv(prices_df)
 
-    # 生成单独信号
+    # 生成个别信号
     signals = []
 
     # MACD信号
     if macd_line.iloc[-2] < signal_line.iloc[-2] and macd_line.iloc[-1] > signal_line.iloc[-1]:
-        signals.append('bullish')  # 看涨
+        signals.append('bullish')
     elif macd_line.iloc[-2] > signal_line.iloc[-2] and macd_line.iloc[-1] < signal_line.iloc[-1]:
-        signals.append('bearish')  # 看跌
+        signals.append('bearish')
     else:
-        signals.append('neutral')  # 中性
+        signals.append('neutral')
 
     # RSI信号
     if rsi.iloc[-1] < 30:
-        signals.append('bullish')  # 看涨
+        signals.append('bullish')
     elif rsi.iloc[-1] > 70:
-        signals.append('bearish')  # 看跌
+        signals.append('bearish')
     else:
-        signals.append('neutral')  # 中性
+        signals.append('neutral')
 
     # 布林带信号
     current_price = prices_df['close'].iloc[-1]
     if current_price < lower_band.iloc[-1]:
-        signals.append('bullish')  # 看涨
+        signals.append('bullish')
     elif current_price > upper_band.iloc[-1]:
-        signals.append('bearish')  # 看跌
+        signals.append('bearish')
     else:
-        signals.append('neutral')  # 中性
+        signals.append('neutral')
 
     # OBV信号
     obv_slope = obv.diff().iloc[-5:].mean()
     if obv_slope > 0:
-        signals.append('bullish')  # 看涨
+        signals.append('bullish')
     elif obv_slope < 0:
-        signals.append('bearish')  # 看跌
+        signals.append('bearish')
     else:
-        signals.append('neutral')  # 中性
+        signals.append('neutral')
 
     # 添加推理收集
     reasoning = {
         "MACD": {
             "signal": signals[0],
-            "details": f"MACD线穿越了{'上方' if signals[0] == 'bullish' else '下方' if signals[0] == 'bearish' else '既不在上方也不在下方'}信号线"
+            "details": f"MACD Line crossed {'above' if signals[0] == 'bullish' else 'below' if signals[0] == 'bearish' else 'neither above nor below'} Signal Line"
         },
         "RSI": {
             "signal": signals[1],
-            "details": f"RSI为{rsi.iloc[-1]:.2f}（{'超卖' if signals[1] == 'bullish' else '超买' if signals[1] == 'bearish' else '中性'}）"
+            "details": f"RSI is {rsi.iloc[-1]:.2f} ({'oversold' if signals[1] == 'bullish' else 'overbought' if signals[1] == 'bearish' else 'neutral'})"
         },
         "Bollinger": {
             "signal": signals[2],
-            "details": f"价格{'低于下轨' if signals[2] == 'bullish' else '高于上轨' if signals[2] == 'bearish' else '在带内'}"
+            "details": f"Price is {'below lower band' if signals[2] == 'bullish' else 'above upper band' if signals[2] == 'bearish' else 'within bands'}"
         },
         "OBV": {
             "signal": signals[3],
-            "details": f"OBV斜率为{obv_slope:.2f}（{signals[3]}）"
+            "details": f"OBV slope is {obv_slope:.2f} ({signals[3]})"
         }
     }
 
-    # 确定整体信号
+    # 确定总体信号
     bullish_signals = signals.count('bullish')
     bearish_signals = signals.count('bearish')
 
     if bullish_signals > bearish_signals:
-        overall_signal = 'bullish'  # 看涨
+        overall_signal = 'bullish'
     elif bearish_signals > bullish_signals:
-        overall_signal = 'bearish'  # 看跌
+        overall_signal = 'bearish'
     else:
-        overall_signal = 'neutral'  # 中性
+        overall_signal = 'neutral'
 
-    # 根据指标一致性计算置信水平
+    # 计算基于指标一致性的置信水平
     total_signals = len(signals)
     confidence = max(bullish_signals, bearish_signals) / total_signals
 
@@ -196,7 +196,7 @@ def technical_analyst_agent(state: AgentState):
     )
 
     if show_reasoning:
-        show_agent_reasoning(analysis_report, "技术分析师")
+        show_agent_reasoning(analysis_report, "Technical Analyst")
 
     return {
         "messages": [message],
@@ -213,10 +213,10 @@ def calculate_trend_signals(prices_df):
     ema_21 = calculate_ema(prices_df, 21)
     ema_55 = calculate_ema(prices_df, 55)
 
-    # 计算ADX以评估趋势强度
+    # 计算ADX以确定趋势强度
     adx = calculate_adx(prices_df, 14)
 
-    # 计算一目均衡表
+    # 计算Ichimoku云
     ichimoku = calculate_ichimoku(prices_df)
 
     # 确定趋势方向和强度
@@ -227,13 +227,13 @@ def calculate_trend_signals(prices_df):
     trend_strength = adx['adx'].iloc[-1] / 100.0
 
     if short_trend.iloc[-1] and medium_trend.iloc[-1]:
-        signal = 'bullish'  # 看涨
+        signal = 'bullish'
         confidence = trend_strength
     elif not short_trend.iloc[-1] and not medium_trend.iloc[-1]:
-        signal = 'bearish'  # 看跌
+        signal = 'bearish'
         confidence = trend_strength
     else:
-        signal = 'neutral'  # 中性
+        signal = 'neutral'
         confidence = 0.5
 
     return {
@@ -270,13 +270,13 @@ def calculate_mean_reversion_signals(prices_df):
 
     # 结合信号
     if z_score.iloc[-1] < -2 and price_vs_bb < 0.2:
-        signal = 'bullish'  # 看涨
+        signal = 'bullish'
         confidence = min(abs(z_score.iloc[-1]) / 4, 1.0)
     elif z_score.iloc[-1] > 2 and price_vs_bb > 0.8:
-        signal = 'bearish'  # 看跌
+        signal = 'bearish'
         confidence = min(abs(z_score.iloc[-1]) / 4, 1.0)
     else:
-        signal = 'neutral'  # 中性
+        signal = 'neutral'
         confidence = 0.5
 
     return {
@@ -293,7 +293,7 @@ def calculate_mean_reversion_signals(prices_df):
 
 def calculate_momentum_signals(prices_df):
     """
-    多因素动量策略
+    多因子动量策略
     """
     # 价格动量
     returns = prices_df['close'].pct_change()
@@ -301,12 +301,12 @@ def calculate_momentum_signals(prices_df):
     mom_3m = returns.rolling(63).sum()
     mom_6m = returns.rolling(126).sum()
 
-    # 交易量动量
+    # 体积动量
     volume_ma = prices_df['volume'].rolling(21).mean()
     volume_momentum = prices_df['volume'] / volume_ma
 
     # 相对强度
-    # （在实际实现中会与市场/行业进行比较）
+    # (would compare to market/sector in real implementation)
 
     # 计算动量得分
     momentum_score = (
@@ -315,17 +315,17 @@ def calculate_momentum_signals(prices_df):
         0.3 * mom_6m
     ).iloc[-1]
 
-    # 交易量确认
+    # 体积确认
     volume_confirmation = volume_momentum.iloc[-1] > 1.0
 
     if momentum_score > 0.05 and volume_confirmation:
-        signal = 'bullish'  # 看涨
+        signal = 'bullish'
         confidence = min(abs(momentum_score) * 5, 1.0)
     elif momentum_score < -0.05 and volume_confirmation:
-        signal = 'bearish'  # 看跌
+        signal = 'bearish'
         confidence = min(abs(momentum_score) * 5, 1.0)
     else:
-        signal = 'neutral'  # 中性
+        signal = 'neutral'
         confidence = 0.5
 
     return {
@@ -361,18 +361,18 @@ def calculate_volatility_signals(prices_df):
     atr = calculate_atr(prices_df)
     atr_ratio = atr / prices_df['close']
 
-    # 根据波动率状态生成信号
+    # 生成基于波动率状态的信号
     current_vol_regime = vol_regime.iloc[-1]
     vol_z = vol_z_score.iloc[-1]
 
     if current_vol_regime < 0.8 and vol_z < -1:
-        signal = 'bullish'  # 低波动状态，潜在扩张
+        signal = 'bullish'  # Low vol regime, potential for expansion
         confidence = min(abs(vol_z) / 3, 1.0)
     elif current_vol_regime > 1.2 and vol_z > 1:
-        signal = 'bearish'  # 高波动状态，潜在收缩
+        signal = 'bearish'  # High vol regime, potential for contraction
         confidence = min(abs(vol_z) / 3, 1.0)
     else:
-        signal = 'neutral'  # 中性
+        signal = 'neutral'
         confidence = 0.5
 
     return {
@@ -398,21 +398,21 @@ def calculate_stat_arb_signals(prices_df):
     skew = returns.rolling(63).skew()
     kurt = returns.rolling(63).kurt()
 
-    # 使用赫斯特指数测试均值回归
+    # 使用Hurst指数测试均值回归
     hurst = calculate_hurst_exponent(prices_df['close'])
 
     # 相关性分析
-    # （在实际实现中会包括与相关证券的相关性）
+    # (would include correlation with related securities in real implementation)
 
-    # 根据统计特性生成信号
+    # 生成基于统计特性的信号
     if hurst < 0.4 and skew.iloc[-1] > 1:
-        signal = 'bullish'  # 看涨
+        signal = 'bullish'
         confidence = (0.5 - hurst) * 2
     elif hurst < 0.4 and skew.iloc[-1] < -1:
-        signal = 'bearish'  # 看跌
+        signal = 'bearish'
         confidence = (0.5 - hurst) * 2
     else:
-        signal = 'neutral'  # 中性
+        signal = 'neutral'
         confidence = 0.5
 
     return {
@@ -456,11 +456,11 @@ def weighted_signal_combination(signals, weights):
 
     # 转换回信号
     if final_score > 0.2:
-        signal = 'bullish'  # 看涨
+        signal = 'bullish'
     elif final_score < -0.2:
-        signal = 'bearish'  # 看跌
+        signal = 'bearish'
     else:
-        signal = 'neutral'  # 中性
+        signal = 'neutral'
 
     return {
         'signal': signal,
@@ -469,7 +469,7 @@ def weighted_signal_combination(signals, weights):
 
 
 def normalize_pandas(obj):
-    """将pandas系列/数据框转换为原始Python类型"""
+    """将Pandas Series/DataFrames转换为原始Python类型"""
     if isinstance(obj, pd.Series):
         return obj.tolist()
     elif isinstance(obj, pd.DataFrame):
@@ -516,7 +516,7 @@ def calculate_ema(df: pd.DataFrame, window: int) -> pd.Series:
     计算指数移动平均
 
     参数：
-        df: 包含价格数据的数据框
+        df: 包含价格数据的DataFrame
         window: EMA周期
 
     返回：
@@ -530,11 +530,11 @@ def calculate_adx(df: pd.DataFrame, period: int = 14) -> pd.DataFrame:
     计算平均方向指数（ADX）
 
     参数：
-        df: 包含OHLC数据的数据框
+        df: 包含OHLC数据的DataFrame
         period: 计算周期
 
     返回：
-        包含ADX值的数据框
+        包含ADX值的DataFrame
     """
     # 计算真实范围
     df['high_low'] = df['high'] - df['low']
@@ -570,33 +570,34 @@ def calculate_adx(df: pd.DataFrame, period: int = 14) -> pd.DataFrame:
 
 def calculate_ichimoku(df: pd.DataFrame) -> Dict[str, pd.Series]:
     """
-    计算一目均衡表指标
+    计算Ichimoku云指标
 
     参数：
-        df: 包含OHLC数据的数据框
+        df: 包含OHLC数据的DataFrame
 
     返回：
-        包含一目均衡表组件的字典
+        包含Ichimoku组件的字典
     """
-    # 转换线（Tenkan-sen）：（9期高 + 9期低）/2
+    # 计算Ichimoku云的各个组成部分
+    # Tenkan-sen (Conversion Line): (9-period high + 9-period low)/2
     period9_high = df['high'].rolling(window=9).max()
     period9_low = df['low'].rolling(window=9).min()
     tenkan_sen = (period9_high + period9_low) / 2
 
-    # 基准线（Kijun-sen）：（26期高 + 26期低）/2
+    # Kijun-sen (Base Line): (26-period high + 26-period low)/2
     period26_high = df['high'].rolling(window=26).max()
     period26_low = df['low'].rolling(window=26).min()
     kijun_sen = (period26_high + period26_low) / 2
 
-    # 领先跨度A（Senkou Span A）：（转换线 + 基准线）/2
+    # Senkou Span A (Leading Span A): (Conversion Line + Base Line)/2
     senkou_span_a = ((tenkan_sen + kijun_sen) / 2).shift(26)
 
-    # 领先跨度B（Senkou Span B）：（52期高 + 52期低）/2
+    # Senkou Span B (Leading Span B): (52-period high + 52-period low)/2
     period52_high = df['high'].rolling(window=52).max()
     period52_low = df['low'].rolling(window=52).min()
     senkou_span_b = ((period52_high + period52_low) / 2).shift(26)
 
-    # 滞后跨度（Chikou Span）：收盘价向后移动26期
+    # Chikou Span (Lagging Span): Close shifted back 26 periods
     chikou_span = df['close'].shift(-26)
 
     return {
@@ -610,10 +611,10 @@ def calculate_ichimoku(df: pd.DataFrame) -> Dict[str, pd.Series]:
 
 def calculate_atr(df: pd.DataFrame, period: int = 14) -> pd.Series:
     """
-    计算平均真实范围
+    计算平均真实波幅
 
     参数：
-        df: 包含OHLC数据的数据框
+        df: 包含OHLC数据的DataFrame
         period: ATR计算周期
 
     返回：
@@ -631,7 +632,7 @@ def calculate_atr(df: pd.DataFrame, period: int = 14) -> pd.Series:
 
 def calculate_hurst_exponent(price_series: pd.Series, max_lag: int = 20) -> float:
     """
-    计算赫斯特指数以确定时间序列的长期记忆
+    计算Hurst指数以确定时间序列的长期记忆
     H < 0.5: 均值回归序列
     H = 0.5: 随机游走
     H > 0.5: 趋势序列
@@ -641,19 +642,19 @@ def calculate_hurst_exponent(price_series: pd.Series, max_lag: int = 20) -> floa
         max_lag: R/S计算的最大滞后
 
     返回：
-        float: 赫斯特指数
+        float: Hurst指数
     """
     lags = range(2, max_lag)
-    # 添加小的epsilon以避免log(0)
+    # Add small epsilon to avoid log(0)
     tau = [max(1e-8, np.sqrt(np.std(np.subtract(price_series[lag:],
                price_series[:-lag])))) for lag in lags]
 
-    # 从线性拟合返回赫斯特指数
+    # Return the Hurst exponent from linear fit
     try:
         reg = np.polyfit(np.log(lags), np.log(tau), 1)
-        return reg[0]  # 赫斯特指数是斜率
+        return reg[0]  # Hurst exponent is the slope
     except (ValueError, RuntimeWarning):
-        # 如果计算失败，返回0.5（随机游走）
+        # Return 0.5 (random walk) if calculation fails
         return 0.5
 
 

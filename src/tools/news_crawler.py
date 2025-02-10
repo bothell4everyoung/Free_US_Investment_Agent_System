@@ -160,10 +160,10 @@ def get_news_sentiment(news_list: list, date: str = None, num_of_news: int = 5) 
 
     # 准备新闻内容
     news_content = "\n\n".join([
-        f"标题: {news['title']}\n"
-        f"来源: {news['source']}\n"
-        f"时间: {news['publish_time']}\n"
-        f"内容: {news['content']}"
+        f"作者: {news['Author']}\n"
+        f"推文连接: {news['Link']}\n"
+        f"时间: {news['PublishedDate']}\n"
+        f"内容: {news['Content']}"
         for news in news_list[:num_of_news]
     ])
 

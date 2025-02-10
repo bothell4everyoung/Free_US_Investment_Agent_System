@@ -16,8 +16,8 @@ def sentiment_agent(state: AgentState):
     # 从命令行参数获取推文日期，默认为5天内
     num_of_news = data.get("num_of_news", 5)
 
-    # 获取新闻数据并使用历史日期分析情绪
-    news_list = get_stock_tweets(symbol, date=current_date, max_news=num_of_news)
+    # 获取推文数据并使用历史日期分析情绪
+    news_list = get_stock_tweets(symbol, date=current_date, max_articles=num_of_news)
 
     sentiment_score = get_news_sentiment(
         news_list, date=current_date, num_of_news=num_of_news)
@@ -37,7 +37,7 @@ def sentiment_agent(state: AgentState):
     message_content = {
         "signal": signal,
         "confidence": confidence,
-        "reasoning": f"基于截至{current_date}的{len(recent_news)}篇最近新闻文章，情绪分数: {sentiment_score:.2f}"
+        "reasoning": f"基于截至{current_date}的{len(news_list)}篇最近新闻文章，情绪分数: {sentiment_score:.2f}"
     }
 
     # 如果设置了标志，则显示推理
