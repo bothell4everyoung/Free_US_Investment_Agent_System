@@ -13,7 +13,7 @@ import warnings
 from main import run_hedge_fund
 from tools.api import get_price_data
 
-# Configure Chinese font based on OS
+# 根据操作系统配置中文字体
 if sys.platform.startswith('win'):
     matplotlib.rc('font', family='Microsoft YaHei')
 elif sys.platform.startswith('linux'):
@@ -21,8 +21,8 @@ elif sys.platform.startswith('linux'):
 else:
     matplotlib.rc('font', family='PingFang SC')
 
-# Enable minus sign display
-matplotlib.rcParams['axes.unicode_minus'] = False
+# 启用负号显示
+matplotlib.rcParams['axes.unicode_minus'] = True
 
 # Disable matplotlib warnings
 warnings.filterwarnings('ignore', category=UserWarning, module='matplotlib')
@@ -44,23 +44,23 @@ class Backtester:
         self.portfolio_values = []
         self.num_of_news = num_of_news
 
-        # Setup logging
+        # 设置日志系统
         self.setup_backtest_logging()
         self.logger = self.setup_logging()
 
-        # Initialize API call management
+        # 初始化API调用管理
         self._api_call_count = 0
         self._api_window_start = time.time()
         self._last_api_call = 0
 
-        # Initialize market calendar
+        # 初始化市场日历
         self.nyse = mcal.get_calendar('NYSE')
 
-        # Validate inputs
+        # 验证输入参数
         self.validate_inputs()
 
     def setup_logging(self):
-        """Setup logging system"""
+        """设置日志系统"""
         logger = logging.getLogger('backtester')
         logger.setLevel(logging.INFO)
         if not logger.handlers:
@@ -72,7 +72,7 @@ class Backtester:
         return logger
 
     def validate_inputs(self):
-        """Validate input parameters"""
+        """验证输入参数"""
         try:
             start = datetime.strptime(self.start_date, "%Y-%m-%d")
             end = datetime.strptime(self.end_date, "%Y-%m-%d")
@@ -86,14 +86,14 @@ class Backtester:
             if not (self.ticker.isalpha() or (len(self.ticker) == 6 and self.ticker.isdigit())):
                 self.backtest_logger.warning(
                     f"Stock code {self.ticker} might be in an unusual format")
-            self.backtest_logger.info("Input parameters validated")
+            self.backtest_logger.info("输入参数验证通过")
         except Exception as e:
             self.backtest_logger.error(
-                f"Input parameter validation failed: {str(e)}")
+                f"输入参数验证失败: {str(e)}")
             raise
 
     def setup_backtest_logging(self):
-        """Setup backtest logging"""
+        """设置回测日志"""
         log_dir = os.path.join(os.path.dirname(
             os.path.abspath(__file__)), '..', 'logs')
         os.makedirs(log_dir, exist_ok=True)
@@ -116,21 +116,21 @@ class Backtester:
         self.backtest_logger.addHandler(file_handler)
 
         self.backtest_logger.info(
-            f"Backtest Start Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        self.backtest_logger.info(f"Stock Code: {self.ticker}")
+            f"回测开始时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        self.backtest_logger.info(f"股票代码: {self.ticker}")
         self.backtest_logger.info(
-            f"Backtest Period: {self.start_date} to {self.end_date}")
+            f"回测周期: {self.start_date} 到 {self.end_date}")
         self.backtest_logger.info(
-            f"Initial Capital: {self.initial_capital:,.2f}\n")
+            f"初始资本: {self.initial_capital:,.2f}\n")
         self.backtest_logger.info("-" * 100)
 
     def is_market_open(self, date_str):
-        """Check if the market is open on a given date"""
+        """检查给定日期市场是否开放"""
         schedule = self.nyse.schedule(start_date=date_str, end_date=date_str)
         return not schedule.empty
 
     def get_previous_trading_day(self, date_str):
-        """Get the previous trading day for a given date"""
+        """获取给定日期的前一个交易日"""
         date = pd.Timestamp(date_str)
         schedule = self.nyse.schedule(
             start_date=date - pd.Timedelta(days=10),
@@ -141,7 +141,7 @@ class Backtester:
         return schedule.index[-2].strftime('%Y-%m-%d')
 
     def get_agent_decision(self, current_date, lookback_start, portfolio, num_of_news):
-        """Get agent decision with API rate limiting"""
+        """获取代理决策并进行API速率限制"""
         max_retries = 3
         current_time = time.time()
 
@@ -220,7 +220,7 @@ class Backtester:
                 time.sleep(2 ** attempt)
 
     def execute_trade(self, action, quantity, current_price):
-        """Execute trade with portfolio constraints"""
+        """根据投资组合约束执行交易"""
         if action == "buy" and quantity > 0:
             cost = quantity * current_price
             if cost <= self.portfolio["cash"]:
@@ -244,61 +244,61 @@ class Backtester:
         return 0
 
     def run_backtest(self):
-        """Run backtest simulation"""
-        # Get valid trading days from market calendar
+        """运行回测模拟"""
+        # 从市场日历中获取有效交易日期
         schedule = self.nyse.schedule(
             start_date=self.start_date, end_date=self.end_date)
         dates = pd.DatetimeIndex([dt.strftime('%Y-%m-%d')
                                  for dt in schedule.index])
 
-        self.backtest_logger.info("\nStarting backtest...")
+        self.backtest_logger.info("\n开始回测...")
         print(f"{'Date':<12} {'Code':<6} {'Action':<6} {'Quantity':>8} {'Price':>8} {'Cash':>12} {'Stock':>8} {'Total':>12} {'Bull':>8} {'Bear':>8} {'Neutral':>8}")
         print("-" * 110)
 
         for current_date in dates:
             current_date_str = current_date.strftime("%Y-%m-%d")
 
-            # Check if market is open
+            # 检查市场是否开放
             if not self.is_market_open(current_date_str):
                 self.backtest_logger.info(
-                    f"Market is closed on {current_date_str} (Holiday), skipping...")
+                    f"{current_date_str} 市场关闭（假期），跳过...")
                 continue
 
-            # Get previous trading day
+            # 获取前一个交易日
             decision_date = self.get_previous_trading_day(current_date_str)
             if decision_date is None:
                 self.backtest_logger.warning(
-                    f"Could not find previous trading day for {current_date_str}, skipping...")
+                    f"无法找到 {current_date_str} 的前一个交易日，跳过...")
                 continue
 
-            # Use 365-day lookback window
+            # 使用365天的回溯窗口
             lookback_start = (pd.Timestamp(current_date_str) -
                               pd.Timedelta(days=365)).strftime("%Y-%m-%d")
 
             self.backtest_logger.info(
-                f"\nProcessing trading day: {current_date_str}")
+                f"\n处理交易日: {current_date_str}")
             self.backtest_logger.info(
-                f"Using data up to: {decision_date} (previous trading day)")
+                f"使用数据截至: {decision_date}（前一个交易日）")
             self.backtest_logger.info(
-                f"Historical data range: {lookback_start} to {decision_date}")
+                f"历史数据范围: {lookback_start} 到 {decision_date}")
 
-            # Get current day's price data for trade execution
+            # 获取当前日的价格数据以执行交易
             try:
                 df = get_price_data(
                     self.ticker, current_date_str, current_date_str)
                 if df is None or df.empty:
                     self.backtest_logger.warning(
-                        f"No price data available for {current_date_str}, skipping...")
+                        f"{current_date_str} 没有可用的价格数据，跳过...")
                     continue
 
-                # Use opening price for trade execution
+                # 使用开盘价进行交易执行
                 current_price = df.iloc[0]['open']
             except Exception as e:
                 self.backtest_logger.error(
-                    f"Error getting price data for {current_date_str}: {str(e)}")
+                    f"获取 {current_date_str} 的价格数据时出错: {str(e)}")
                 continue
 
-            # Get agent decision based on historical data
+            # 获取基于历史数据的代理决策
             output = self.get_agent_decision(
                 decision_date,
                 lookback_start,
@@ -306,22 +306,22 @@ class Backtester:
                 self.num_of_news
             )
 
-            self.backtest_logger.info(f"\nTrade Date: {current_date_str}")
+            self.backtest_logger.info(f"\n交易日期: {current_date_str}")
             self.backtest_logger.info(
-                f"Decision based on data up to: {decision_date}")
+                f"基于数据的决策截至: {decision_date}")
 
             if "analyst_signals" in output:
-                self.backtest_logger.info("\nAgent Analysis Results:")
+                self.backtest_logger.info("\n代理分析结果:")
                 for agent_name, signal in output["analyst_signals"].items():
                     self.backtest_logger.info(f"\n{agent_name}:")
 
-                    signal_str = f"- Signal: {signal.get('signal', 'unknown')}"
+                    signal_str = f"- 信号: {signal.get('signal', '未知')}"
                     if 'confidence' in signal:
-                        signal_str += f", Confidence: {signal.get('confidence', 0)*100:.0f}%"
+                        signal_str += f", 置信度: {signal.get('confidence', 0)*100:.0f}%"
                     self.backtest_logger.info(signal_str)
 
                     if 'analysis' in signal:
-                        self.backtest_logger.info("- Analysis:")
+                        self.backtest_logger.info("- 分析:")
                         analysis = signal['analysis']
                         if isinstance(analysis, dict):
                             for key, value in analysis.items():
@@ -333,7 +333,7 @@ class Backtester:
                             self.backtest_logger.info(f"  {analysis}")
 
                     if 'reason' in signal:
-                        self.backtest_logger.info("- Decision Rationale:")
+                        self.backtest_logger.info("- 决策理由:")
                         reason = signal['reason']
                         if isinstance(reason, list):
                             for item in reason:
@@ -346,30 +346,30 @@ class Backtester:
             action, quantity = agent_decision.get(
                 "action", "hold"), agent_decision.get("quantity", 0)
 
-            self.backtest_logger.info("\nFinal Decision:")
-            self.backtest_logger.info(f"Action: {action.upper()}")
-            self.backtest_logger.info(f"Quantity: {quantity}")
+            self.backtest_logger.info("\n最终决策:")
+            self.backtest_logger.info(f"动作: {action.upper()}")
+            self.backtest_logger.info(f"数量: {quantity}")
             if "reason" in agent_decision:
                 self.backtest_logger.info(
-                    f"Reason: {agent_decision['reason']}")
+                    f"理由: {agent_decision['reason']}")
 
-            # Execute trade
+            # 执行交易
             executed_quantity = self.execute_trade(
                 action, quantity, current_price)
 
-            # Update portfolio value
+            # 更新投资组合价值
             total_value = self.portfolio["cash"] + \
                 self.portfolio["stock"] * current_price
             self.portfolio["portfolio_value"] = total_value
 
-            # Record portfolio value
+            # 记录投资组合价值
             self.portfolio_values.append({
                 "Date": current_date_str,
                 "Portfolio Value": total_value,
                 "Daily Return": (total_value / self.portfolio_values[-1]["Portfolio Value"] - 1) * 100 if self.portfolio_values else 0
             })
 
-            # Count signals
+            # 计数信号
             bull_count = sum(1 for signal in output.get(
                 "analyst_signals", {}).values() if signal.get("signal") == "buy")
             bear_count = sum(1 for signal in output.get(
@@ -377,20 +377,20 @@ class Backtester:
             neutral_count = sum(1 for signal in output.get(
                 "analyst_signals", {}).values() if signal.get("signal") == "hold")
 
-            # Print trade record
+            # 打印交易记录
             print(
                 f"{current_date_str:<12} {self.ticker:<6} {action:<6} {executed_quantity:>8} "
                 f"{current_price:>8.2f} {self.portfolio['cash']:>12.2f} {self.portfolio['stock']:>8} "
                 f"{total_value:>12.2f} {bull_count:>8} {bear_count:>8} {neutral_count:>8}"
             )
 
-        # Analyze backtest results
+        # 分析回测结果
         self.analyze_performance()
 
     def analyze_performance(self):
-        """Analyze backtest performance"""
+        """分析回测性能"""
         if not self.portfolio_values:
-            self.backtest_logger.warning("No portfolio values to analyze")
+            self.backtest_logger.warning("没有可分析的投资组合价值")
             return
 
         try:
@@ -407,13 +407,13 @@ class Backtester:
             # 创建子图
             fig, (ax1, ax2) = plt.subplots(
                 2, 1, figsize=(12, 10), height_ratios=[1, 1])
-            fig.suptitle("Backtest Analysis", fontsize=12)
+            fig.suptitle("回测分析", fontsize=12)
 
             # 绘制投资组合价值
             line1 = ax1.plot(performance_df.index, performance_df["Portfolio Value (K)"],
-                             label="Portfolio Value", marker='o')
-            ax1.set_ylabel("Portfolio Value (K)")
-            ax1.set_title("Portfolio Value Change")
+                             label="投资组合价值", marker='o')
+            ax1.set_ylabel("投资组合价值 (K)")
+            ax1.set_title("投资组合价值变化")
 
             # 添加数据标注
             for x, y in zip(performance_df.index, performance_df["Portfolio Value (K)"]):
@@ -425,9 +425,9 @@ class Backtester:
 
             # 绘制累计收益率
             line2 = ax2.plot(performance_df.index, performance_df["Cumulative Return"],
-                             label="Cumulative Return", color='green', marker='o')
-            ax2.set_ylabel("Cumulative Return (%)")
-            ax2.set_title("Cumulative Return Change")
+                             label="累计收益率", color='green', marker='o')
+            ax2.set_ylabel("累计收益率 (%)")
+            ax2.set_title("累计收益率变化")
 
             # 添加数据标注
             for x, y in zip(performance_df.index, performance_df["Cumulative Return"]):
@@ -437,7 +437,7 @@ class Backtester:
                              xytext=(0, 10),
                              ha='center')
 
-            plt.xlabel("Date")
+            plt.xlabel("日期")
             plt.tight_layout()
 
             # 保存图片
@@ -453,14 +453,14 @@ class Backtester:
 
             # 输出回测总结
             self.backtest_logger.info("\n" + "=" * 50)
-            self.backtest_logger.info("Backtest Summary")
+            self.backtest_logger.info("回测总结")
             self.backtest_logger.info("=" * 50)
             self.backtest_logger.info(
-                f"Initial Capital: {self.initial_capital:,.2f}")
+                f"初始资本: {self.initial_capital:,.2f}")
             self.backtest_logger.info(
-                f"Final Value: {self.portfolio['portfolio_value']:,.2f}")
+                f"最终价值: {self.portfolio['portfolio_value']:,.2f}")
             self.backtest_logger.info(
-                f"Total Return: {total_return * 100:.2f}%")
+                f"总回报: {total_return * 100:.2f}%")
 
             # 计算夏普比率
             daily_returns = performance_df["Daily Return"] / 100
@@ -468,19 +468,19 @@ class Backtester:
             std_daily_return = daily_returns.std()
             sharpe_ratio = (mean_daily_return / std_daily_return) * \
                 (252 ** 0.5) if std_daily_return != 0 else 0
-            self.backtest_logger.info(f"Sharpe Ratio: {sharpe_ratio:.2f}")
+            self.backtest_logger.info(f"夏普比率: {sharpe_ratio:.2f}")
 
             # 计算最大回撤
             rolling_max = performance_df["Portfolio Value"].cummax()
             drawdown = (
                 performance_df["Portfolio Value"] / rolling_max - 1) * 100
             max_drawdown = drawdown.min()
-            self.backtest_logger.info(f"Maximum Drawdown: {max_drawdown:.2f}%")
+            self.backtest_logger.info(f"最大回撤: {max_drawdown:.2f}%")
 
             return performance_df
         except Exception as e:
             self.backtest_logger.error(
-                f"Error in performance analysis: {str(e)}")
+                f"性能分析出错: {str(e)}")
             return None
 
 
