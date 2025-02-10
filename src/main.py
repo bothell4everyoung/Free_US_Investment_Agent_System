@@ -18,10 +18,10 @@ load_dotenv()  # 加载 .env 文件中的环境变量
 
 ##### Run the Hedge Fund #####
 def run_hedge_fund(ticker: str, start_date: str, end_date: str, portfolio: dict, show_reasoning: bool = False, num_of_news: int = 5):
-    # Define the new workflow
+    # 定义新的工作流程
     graph_builder = StateGraph(AgentState)
 
-    # Add nodes
+    # 添加节点
     graph_builder.add_node("market_data_agent", market_data_agent)
     graph_builder.add_node("technical_analyst_agent", technical_analyst_agent)
     graph_builder.add_node("fundamentals_agent", fundamentals_agent)
@@ -30,7 +30,7 @@ def run_hedge_fund(ticker: str, start_date: str, end_date: str, portfolio: dict,
     graph_builder.add_node("portfolio_management_agent", portfolio_management_agent)
     graph_builder.add_node("valuation_agent", valuation_agent)
 
-    # Define the edge
+    # 定义边
     graph_builder.set_entry_point("market_data_agent")
     graph_builder.add_edge("market_data_agent", "technical_analyst_agent")
     graph_builder.add_edge("market_data_agent", "fundamentals_agent")
@@ -48,7 +48,7 @@ def run_hedge_fund(ticker: str, start_date: str, end_date: str, portfolio: dict,
         {
             "messages": [
                 HumanMessage(
-                    content="Make a trading decision based on the provided data.",
+                    content="根据提供的数据做出交易决策。",
                 )
             ],
             "data": {
@@ -69,10 +69,10 @@ def run_hedge_fund(ticker: str, start_date: str, end_date: str, portfolio: dict,
 if __name__ == "__main__":
     args = parse_and_validate_args()
 
-    # Configure portfolio with initial capital
+    # 使用初始资本配置投资组合
     portfolio = {
         "cash": args.initial_capital,
-        "stock": 0  # No initial stock position
+        "stock": 0  # 没有初始股票头寸
     }
 
     result = run_hedge_fund(
@@ -83,5 +83,5 @@ if __name__ == "__main__":
         show_reasoning=args.show_reasoning,
         num_of_news=args.num_of_news
     )
-    print("\nFinal Result:")
+    print("\n最终结果:")
     print(result)

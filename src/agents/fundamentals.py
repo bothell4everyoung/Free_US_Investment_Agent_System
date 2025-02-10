@@ -36,9 +36,9 @@ def fundamentals_agent(state: AgentState):
         "details": (
             f"ROE: {metrics['return_on_equity']:.2%}" if metrics["return_on_equity"] else "ROE: N/A"
         ) + ", " + (
-            f"Net Margin: {metrics['net_margin']:.2%}" if metrics["net_margin"] else "Net Margin: N/A"
+            f"净利润率: {metrics['net_margin']:.2%}" if metrics["net_margin"] else "净利润率: N/A"
         ) + ", " + (
-            f"Op Margin: {metrics['operating_margin']:.2%}" if metrics["operating_margin"] else "Op Margin: N/A"
+            f"运营利润率: {metrics['operating_margin']:.2%}" if metrics["operating_margin"] else "运营利润率: N/A"
         )
     }
     
@@ -48,9 +48,9 @@ def fundamentals_agent(state: AgentState):
     book_value_growth = metrics.get("book_value_growth")
 
     thresholds = [
-        (revenue_growth, 0.10),  # 10% revenue growth
-        (earnings_growth, 0.10),  # 10% earnings growth
-        (book_value_growth, 0.10)  # 10% book value growth
+        (revenue_growth, 0.10),  # 10% 收入增长
+        (earnings_growth, 0.10),  # 10% 盈利增长
+        (book_value_growth, 0.10)  # 10% 账面价值增长
     ]
     growth_score = sum(
         metric is not None and metric > threshold
@@ -61,9 +61,9 @@ def fundamentals_agent(state: AgentState):
     reasoning["growth_signal"] = {
         "signal": signals[1],
         "details": (
-            f"Revenue Growth: {metrics['revenue_growth']:.2%}" if metrics["revenue_growth"] else "Revenue Growth: N/A"
+            f"收入增长: {metrics['revenue_growth']:.2%}" if metrics["revenue_growth"] else "收入增长: N/A"
         ) + ", " + (
-            f"Earnings Growth: {metrics['earnings_growth']:.2%}" if metrics["earnings_growth"] else "Earnings Growth: N/A"
+            f"盈利增长: {metrics['earnings_growth']:.2%}" if metrics["earnings_growth"] else "盈利增长: N/A"
         )
     }
     
@@ -74,21 +74,21 @@ def fundamentals_agent(state: AgentState):
     earnings_per_share = metrics.get("earnings_per_share")
 
     health_score = 0
-    if current_ratio and current_ratio > 1.5:  # Strong liquidity
+    if current_ratio and current_ratio > 1.5:  # 强劲的流动性
         health_score += 1
-    if debt_to_equity and debt_to_equity < 0.5:  # Conservative debt levels
+    if debt_to_equity and debt_to_equity < 0.5:  # 保守的债务水平
         health_score += 1
     if (free_cash_flow_per_share and earnings_per_share and
-            free_cash_flow_per_share > earnings_per_share * 0.8):  # Strong FCF conversion
+            free_cash_flow_per_share > earnings_per_share * 0.8):  # 强劲的自由现金流转化
         health_score += 1
         
     signals.append('bullish' if health_score >= 2 else 'bearish' if health_score == 0 else 'neutral')
     reasoning["financial_health_signal"] = {
         "signal": signals[2],
         "details": (
-            f"Current Ratio: {metrics['current_ratio']:.2f}" if metrics["current_ratio"] else "Current Ratio: N/A"
+            f"流动比率: {metrics['current_ratio']:.2f}" if metrics["current_ratio"] else "流动比率: N/A"
         ) + ", " + (
-            f"D/E: {metrics['debt_to_equity']:.2f}" if metrics["debt_to_equity"] else "D/E: N/A"
+            f"债务股本比: {metrics['debt_to_equity']:.2f}" if metrics["debt_to_equity"] else "债务股本比: N/A"
         )
     }
     
@@ -98,9 +98,9 @@ def fundamentals_agent(state: AgentState):
     ps_ratio = metrics.get("price_to_sales_ratio")
 
     thresholds = [
-        (pe_ratio, 25),  # Reasonable P/E ratio
-        (pb_ratio, 3),  # Reasonable P/B ratio
-        (ps_ratio, 5)  # Reasonable P/S ratio
+        (pe_ratio, 25),  # 合理的市盈率
+        (pb_ratio, 3),  # 合理的市净率
+        (ps_ratio, 5)  # 合理的市销率
     ]
     price_ratio_score = sum(
         metric is not None and metric > threshold
@@ -130,7 +130,7 @@ def fundamentals_agent(state: AgentState):
     else:
         overall_signal = 'neutral'
     
-    # Calculate confidence level
+    # 计算置信水平
     total_signals = len(signals)
     confidence = max(bullish_signals, bearish_signals) / total_signals
     
@@ -140,15 +140,15 @@ def fundamentals_agent(state: AgentState):
         "reasoning": reasoning
     }
     
-    # Create the fundamental analysis message
+    # 创建基本面分析消息
     message = HumanMessage(
         content=json.dumps(message_content),
         name="fundamentals_agent",
     )
     
-    # Print the reasoning if the flag is set
+    # 如果设置了标志，则打印推理
     if show_reasoning:
-        show_agent_reasoning(message_content, "Fundamental Analysis Agent")
+        show_agent_reasoning(message_content, "基本面分析代理")
     
     return {
         "messages": [message],

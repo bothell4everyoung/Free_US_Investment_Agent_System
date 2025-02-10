@@ -5,7 +5,7 @@ import pandas as pd
 from dotenv import load_dotenv
 import argparse
 import requests
-from src.tools.news_crawler import get_stock_news
+from src.tools.news_crawler import get_stock_tweets
 import logging
 
 # 设置日志记录
@@ -71,7 +71,7 @@ def test_news_crawler(symbol: str = "AAPL", date: str = None):
     # Test with different numbers of news
     for num_news in [5, 10]:
         logger.info(f"\nTesting with {num_news} news articles:")
-        news_list = get_stock_news(symbol, date, num_news)
+        news_list = get_stock_tweets(symbol, date, num_news)
 
         if news_list:
             logger.info(
@@ -91,7 +91,7 @@ def test_news_crawler(symbol: str = "AAPL", date: str = None):
     past_date = (datetime.strptime(date, "%Y-%m-%d") -
                  timedelta(days=7)).strftime("%Y-%m-%d")
     logger.info(f"\nTesting with past date {past_date}:")
-    news_list = get_stock_news(symbol, past_date, 5)
+    news_list = get_stock_tweets(symbol, past_date, 5)
     if news_list:
         logger.info(
             f"Successfully retrieved {len(news_list)} news articles for past date")

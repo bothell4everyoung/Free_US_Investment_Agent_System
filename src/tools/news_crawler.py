@@ -8,7 +8,7 @@ from tools.openrouter_config import get_chat_completion, logger as api_logger
 import logging
 import time
 import pandas as pd
-
+from tools.api import get_tweets_about_ticker
 # 设置日志记录
 # logging.basicConfig(level=logging.INFO,
 #                     format='%(asctime)s - %(levelname)s - %(message)s',
@@ -20,320 +20,188 @@ logger = logging.getLogger(__name__)
 
 
 def fetch_article_content(url: str) -> str:
-    """Fetch article content from URL using BeautifulSoup
+    """从 URL 获取文章内容，使用 BeautifulSoup
 
-    Args:
-        url (str): Article URL
+    参数:
+        url (str): 文章 URL
 
-    Returns:
-        str: Article content or empty string if failed
+    返回:
+        str: 文章内容，如果失败则返回空字符串
     """
     try:
         response = requests.get(url, timeout=10)
         if response.status_code == 200:
             soup = BeautifulSoup(response.text, 'html.parser')
-            # Remove script and style elements
+            # 移除脚本和样式元素
             for script in soup(["script", "style"]):
                 script.decompose()
-            # Get text content
+            # 获取文本内容
             text = soup.get_text()
-            # Break into lines and remove leading/trailing space
+            # 按行分割并去除前后空格
             lines = (line.strip() for line in text.splitlines())
-            # Break multi-headlines into a line each
+            # 将多头条分割成每行一个
             chunks = (phrase.strip()
                       for line in lines for phrase in line.split("  "))
-            # Drop blank lines
+            # 删除空行
             text = ' '.join(chunk for chunk in chunks if chunk)
-            return text[:5000]  # Limit content length
+            return text[:5000]  # 限制内容长度
         return ""
     except Exception as e:
-        logger.error(f"Failed to fetch article content: {e}")
+        logger.error(f"获取文章内容失败: {e}")
         return ""
 
 
-def get_stock_news(symbol: str, date: str = None, max_news: int = 10) -> list:
-    """Get and process stock news from Alpha Vantage
+def get_stock_tweets(symbol: str, date: str = None, max_articles: int = 5) -> list:
+    """从数据库获取和处理股票推文
 
-    Args:
-        symbol (str): Stock symbol, e.g. "AAPL"
-        date (str, optional): The date to get news up to (YYYY-MM-DD). If None, uses current date.
-        max_news (int, optional): Maximum number of news articles to fetch. Defaults to 10.
+    参数:
+        symbol (str): 股票代码，例如 "AAPL"
+        date (str, 可选): 获取新闻的截止日期 (YYYY-MM-DD)。如果为 None，则使用当前日期。
+        max_articles (int, 可选): 最大新闻条数。默认为 5。
 
-    Returns:
-        list: List of news articles, each containing title, content, publish time etc.
+    返回:
+        list: 新闻文章列表，每篇文章包含标题、内容、发布时间等。
     """
-    # Limit max news to 100
-    max_news = min(max_news, 100)
-
-    # Get current date if date not provided
+    # 如果未提供日期，则获取当前日期
     if date is None:
         date = datetime.now().strftime("%Y-%m-%d")
 
-    # Build news file path
-    news_dir = os.path.join("src", "data", "stock_news", symbol)
-    logger.info(f"News directory: {news_dir}")
-
-    # Ensure directory exists
-    try:
-        os.makedirs(news_dir, exist_ok=True)
-        logger.info(
-            f"Successfully created or confirmed directory exists: {news_dir}")
-    except Exception as e:
-        logger.error(f"Failed to create directory: {e}")
-        return []
-
-    news_file = os.path.join(news_dir, f"{date}_news.json")
-    logger.info(f"News file path: {news_file}")
-
-    # Check if we need to update news
-    if os.path.exists(news_file):
-        try:
-            with open(news_file, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                cached_news = data.get("news", [])
-                if len(cached_news) >= max_news:
-                    logger.info(f"Using cached news data: {news_file}")
-                    return cached_news[:max_news]
-                else:
-                    logger.info(
-                        f"Cached news count({len(cached_news)}) is less than requested({max_news})")
-        except Exception as e:
-            logger.error(f"Failed to read cache file: {e}")
-
-    logger.info(f'Starting to fetch news for {symbol} up to {date}...')
+    # 计算开始时间为 date 的 max_articles 天之前
+    start_date = (datetime.strptime(date, "%Y-%m-%d") - timedelta(days=max_articles)).strftime("%Y-%m-%d")
+    logger.info(f"开始时间: {start_date}")
+    logger.info(f'开始获取 {symbol} 的推文，截止到 {date}...')
 
     try:
-        # Convert date to required format YYYYMMDDTHHMM
-        target_date = datetime.strptime(date, "%Y-%m-%d")
-        date_str = target_date.strftime("%Y%m%dT0000")
-        next_date = (target_date + timedelta(days=1)).strftime("%Y%m%dT0000")
+        # 从数据库获取新闻
+        # 这里需要添加数据库查询的逻辑
+        news_list = get_tweets_about_ticker(symbol, start_date, date)
 
-        # Get news from Alpha Vantage
-        api_key = os.getenv('ALPHA_VANTAGE_API_KEY')
-        url = f'https://www.alphavantage.co/query?function=NEWS_SENTIMENT&tickers={symbol}&time_from={date_str}&time_to={next_date}&limit={max_news}&apikey={api_key}'
-
-        response = requests.get(url)
-        data = response.json()
-
-        if "feed" not in data:
-            logger.warning(f"No news found for {symbol}")
+        if not news_list:
+            logger.warning(f"未找到 {symbol} 的推文")
             return []
 
-        news_data = data["feed"]
-        logger.info(f"Raw news count: {len(news_data)}")
-        if news_data:
-            logger.info(
-                f"First raw news item:\n{json.dumps(news_data[0], indent=2)}")
-
-        # Process news
-        news_list = []
-        for i, news in enumerate(news_data[:max_news]):
-            try:
-                # Extract data from Alpha Vantage response
-                title = news.get('title', '')
-                content = news.get('summary', '')
-                source = news.get('source', '')
-                url = news.get('url', '')
-                time_published = news.get('time_published', '')
-
-                # Convert timestamp from format YYYYMMDDTHHMMSS to datetime
-                try:
-                    publish_time = datetime.strptime(
-                        time_published, "%Y%m%dT%H%M%S")
-                    publish_time_str = publish_time.strftime(
-                        '%Y-%m-%d %H:%M:%S')
-                except Exception as e:
-                    logger.warning(
-                        f"Failed to parse publish time: {time_published}, error: {e}")
-                    continue
-
-                # Log processing details
-                logger.info(f"\nProcessing news item {i+1}:")
-                logger.info(f"Title: {title}")
-                logger.info(f"Content length: {len(content)}")
-                logger.info(f"Source: {source}")
-                logger.info(f"URL: {url}")
-                logger.info(f"Publish time: {publish_time_str}")
-
-                # Filter logic
-                if not title and not content:
-                    logger.warning(
-                        "Skipping: both title and content are empty")
-                    continue
-
-                if len(content) < 10 and len(title) < 10:
-                    logger.warning(
-                        "Skipping: both title and content are too short")
-                    continue
-
-                # If content is too short, try to fetch full article
-                if len(content) < 100:
-                    full_content = fetch_article_content(url)
-                    if full_content:
-                        content = full_content
-
-                # Add news item
-                news_item = {
-                    "title": title.strip(),
-                    "content": content.strip() if content else title.strip(),
-                    "publish_time": publish_time_str,
-                    "source": source.strip(),
-                    "url": url.strip(),
-                }
-                news_list.append(news_item)
-                logger.info(f"Successfully added news: {news_item['title']}")
-
-            except Exception as e:
-                logger.error(f"Failed to process single news item: {e}")
-                continue
-
-        # Sort by publish time
-        news_list.sort(key=lambda x: x["publish_time"], reverse=True)
-
-        # Keep only requested number of news
-        news_list = news_list[:max_news]
-
-        # Save to file
-        try:
-            save_data = {
-                "date": date,
-                "news": news_list
-            }
-            with open(news_file, 'w', encoding='utf-8') as f:
-                json.dump(save_data, f, ensure_ascii=False, indent=2)
-            logger.info(
-                f"Successfully saved {len(news_list)} news items to file: {news_file}")
-
-            # # Also save to combined news file
-            # combined_news_file = os.path.join(
-            #     "src", "data", "stock_news", f"{symbol}_news.json")
-            # with open(combined_news_file, 'w', encoding='utf-8') as f:
-            #     json.dump(save_data, f, ensure_ascii=False, indent=2)
-            # logger.info(
-            #     f"Successfully saved to combined news file: {combined_news_file}")
-
-        except Exception as e:
-            logger.error(f"Failed to save news data to file: {e}")
+        # 记录获取的新闻数量
+        logger.info(f"获取到的新闻数量: {len(news_list)}")
 
         return news_list
 
     except Exception as e:
-        logger.error(f"Failed to fetch news data: {e}")
+        logger.error(f"获取新闻数据失败: {e}")
         return []
 
 
 def get_news_sentiment(news_list: list, date: str = None, num_of_news: int = 5) -> float:
-    """Analyze news sentiment using LLM
+    """使用 LLM 分析新闻情感
 
-    Args:
-        news_list (list): List of news articles
-        date (str, optional): The date for sentiment analysis (YYYY-MM-DD). If None, uses current date.
-        num_of_news (int, optional): Number of news articles to analyze. Defaults to 5.
+    参数:
+        news_list (list): 新闻文章列表
+        date (str, 可选): 情感分析的日期 (YYYY-MM-DD)。如果为 None，则使用当前日期。
+        num_of_news (int, 可选): 要分析的新闻文章数量。默认为 5。
 
-    Returns:
-        float: Sentiment score between -1 and 1
+    返回:
+        float: 情感分数，范围在 -1 到 1 之间
     """
     if not news_list:
         return 0.0
 
-    # Get current date if date not provided
+    # 如果未提供日期，则获取当前日期
     if date is None:
         date = datetime.now().strftime("%Y-%m-%d")
 
-    # Check cache
+    # 检查缓存
     cache_file = "src/data/sentiment_cache.json"
     os.makedirs(os.path.dirname(cache_file), exist_ok=True)
 
-    # Check cache using just the date as key
+    # 仅使用日期作为键检查缓存
     if os.path.exists(cache_file):
-        logger.info("Found sentiment analysis cache file")
+        logger.info("找到情感分析缓存文件")
         try:
             with open(cache_file, 'r', encoding='utf-8') as f:
                 cache = json.load(f)
                 if date in cache:
-                    logger.info("Using cached sentiment analysis result")
+                    logger.info("使用缓存的情感分析结果")
                     return cache[date]
-                logger.info("No matching sentiment analysis cache found")
+                logger.info("未找到匹配的情感分析缓存")
         except Exception as e:
-            logger.error(f"Failed to read sentiment cache: {e}")
+            logger.error(f"读取情感缓存失败: {e}")
             cache = {}
     else:
         logger.info(
-            "No sentiment analysis cache file found, will create new one")
+            "未找到情感分析缓存文件，将创建新文件")
         cache = {}
 
-    # Prepare system message
+    # 准备系统消息
     system_message = {
         "role": "system",
-        "content": """You are a professional US stock market analyst specializing in news sentiment analysis. You need to analyze a set of news articles and provide a sentiment score between -1 and 1:
-        - 1 represents extremely positive (e.g., major positive news, breakthrough earnings, strong industry support)
-        - 0.5 to 0.9 represents positive (e.g., growth in earnings, new project launch, contract wins)
-        - 0.1 to 0.4 represents slightly positive (e.g., small contract signings, normal operations)
-        - 0 represents neutral (e.g., routine announcements, personnel changes, non-impactful news)
-        - -0.1 to -0.4 represents slightly negative (e.g., minor litigation, non-core business losses)
-        - -0.5 to -0.9 represents negative (e.g., declining performance, major customer loss, industry regulation tightening)
-        - -1 represents extremely negative (e.g., major violations, core business severe losses, regulatory penalties)
+        "content": """你是一位专业的美国股市分析师，专注于新闻情感分析。你需要分析一组新闻文章并提供一个情感分数，范围在 -1 到 1 之间：
+        - 1 代表极其积极（例如，重大积极新闻、突破性收益、强大的行业支持）
+        - 0.5 到 0.9 代表积极（例如，收益增长、新项目启动、合同赢得）
+        - 0.1 到 0.4 代表稍微积极（例如，小合同签署、正常运营）
+        - 0 代表中立（例如，例行公告、人事变动、无影响新闻）
+        - -0.1 到 -0.4 代表稍微消极（例如，小型诉讼、非核心业务损失）
+        - -0.5 到 -0.9 代表消极（例如，业绩下滑、重大客户流失、行业监管收紧）
+        - -1 代表极其消极（例如，重大违规、核心业务严重损失、监管处罚）
 
-        Focus on:
-        1. Performance related: financial reports, earnings forecasts, revenue/profit
-        2. Policy impact: industry policies, regulatory policies, local policies
-        3. Market performance: market share, competitive position, business model
-        4. Capital operations: M&A, equity incentives, additional issuance
-        5. Risk events: litigation, arbitration, penalties
-        6. Industry position: technological innovation, patents, market share
-        7. Public opinion: media evaluation, social impact
+        关注点：
+        1. 业绩相关：财务报告、收益预测、收入/利润
+        2. 政策影响：行业政策、监管政策、地方政策
+        3. 市场表现：市场份额、竞争地位、商业模式
+        4. 资本运作：并购、股权激励、增发
+        5. 风险事件：诉讼、仲裁、处罚
+        6. 行业地位：技术创新、专利、市场份额
+        7. 公众舆论：媒体评价、社会影响
 
-        Please ensure to analyze:
-        1. News authenticity and reliability
-        2. News timeliness and impact scope
-        3. Actual impact on company fundamentals
-        4. US stock market's specific reaction patterns"""
+        请确保分析：
+        1. 新闻的真实性和可靠性
+        2. 新闻的时效性和影响范围
+        3. 对公司基本面的实际影响
+        4. 美国股市的特定反应模式"""
     }
 
-    # Prepare news content
+    # 准备新闻内容
     news_content = "\n\n".join([
-        f"Title: {news['title']}\n"
-        f"Source: {news['source']}\n"
-        f"Time: {news['publish_time']}\n"
-        f"Content: {news['content']}"
+        f"标题: {news['title']}\n"
+        f"来源: {news['source']}\n"
+        f"时间: {news['publish_time']}\n"
+        f"内容: {news['content']}"
         for news in news_list[:num_of_news]
     ])
 
     user_message = {
         "role": "user",
-        "content": f"Please analyze the sentiment of the following US stock related news:\n\n{news_content}\n\nPlease return only a number between -1 and 1, no explanation needed."
+        "content": f"请分析以下与美国股票相关的新闻情感:\n\n{news_content}\n\n请仅返回一个介于 -1 和 1 之间的数字，不需要解释。"
     }
 
     try:
-        # Get LLM analysis result
+        # 获取 LLM 分析结果
         result = get_chat_completion([system_message, user_message])
         if result is None:
-            logger.error("Error: LLM returned None")
+            logger.error("错误: LLM 返回 None")
             return 0.0
 
-        # Extract numeric result
+        # 提取数字结果
         try:
             sentiment_score = float(result.strip())
         except ValueError as e:
-            logger.error(f"Error parsing sentiment score: {e}")
-            logger.error(f"Raw result: {result}")
+            logger.error(f"解析情感分数时出错: {e}")
+            logger.error(f"原始结果: {result}")
             return 0.0
 
-        # Ensure score is between -1 and 1
+        # 确保分数在 -1 和 1 之间
         sentiment_score = max(-1.0, min(1.0, sentiment_score))
 
-        # Cache result using date as key
+        # 使用日期作为键缓存结果
         cache[date] = sentiment_score
         try:
             with open(cache_file, 'w', encoding='utf-8') as f:
                 json.dump(cache, f, ensure_ascii=False, indent=2)
             logger.info(
-                f"Successfully cached sentiment score {sentiment_score} for date {date}")
+                f"成功缓存日期 {date} 的情感分数 {sentiment_score}")
         except Exception as e:
-            logger.error(f"Error writing cache: {e}")
+            logger.error(f"写入缓存时出错: {e}")
 
         return sentiment_score
 
     except Exception as e:
-        logger.error(f"Error analyzing news sentiment: {e}")
-        return 0.0  # Return neutral score on error
+        logger.error(f"分析新闻情感时出错: {e}")
+        return 0.0  # 在出错时返回中性分数

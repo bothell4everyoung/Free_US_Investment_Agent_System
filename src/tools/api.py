@@ -214,7 +214,6 @@ def get_price_history(symbol: str, start_date: str = None, end_date: str = None)
                 "volume": int(row["volume"])
             }
             prices.append(price_dict)
-        print(prices)
         return prices
 
     finally:
